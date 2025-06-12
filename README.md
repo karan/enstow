@@ -41,7 +41,7 @@ This project provides a robust, containerized solution for safely backing up you
 
 ## Project Structure
 
-```
+
 .
 ├── backup_script.py        # The core Python script for database backups
 ├── config.yaml             # YAML configuration file for databases
@@ -54,17 +54,16 @@ This project provides a robust, containerized solution for safely backing up you
 ├── tests/
 │   └── test_backup_script.py # Unit tests for backup_script.py
 └── end_to_end/             # End-to-End test suite
-    ├── run_e2e_test.sh         # Main E2E test runner script
-    ├── e2e_config.yaml         # Config for E2E backup agent
-    ├── docker-compose.e2e.yml  # Docker Compose for E2E test DBs and agent
-    ├── initial_data_mariadb.sql # Test data for MariaDB
-    ├── initial_data_postgres.sql # Test data for PostgreSQL
-    ├── initial_data_sqlite.db  # Test data for SQLite
-    ├── initial_data_redis.txt  # Test data for Redis/Valkey
-    ├── verify_restore.py       # Script to verify restored data
-    └── Dockerfile.verify_restore # Dockerfile for verification script
+├── run_e2e_test.sh         # Main E2E test runner script
+├── e2e_config.yaml         # Config for E2E backup agent
+├── docker-compose.e2e.yml  # Docker Compose for E2E test DBs and agent
+├── initial_data_mariadb.sql # Test data for MariaDB
+├── initial_data_postgres.sql # Test data for PostgreSQL
+├── initial_data_sqlite.db  # Test data for SQLite
+├── initial_data_redis.txt  # Test data for Redis/Valkey
+├── verify_restore.py       # Script to verify restored data
+└── Dockerfile.verify_restore # Dockerfile for verification script
 
-```
 
 ## Setup and Installation
 
@@ -101,11 +100,11 @@ Follow these steps to get your database backup agent running:
 
     * **`databases`**: This is the core configuration for specifying which databases to back up. It's a list of database objects.
 
-        * Each object must have a `"type"` (e.g., `"mariadb"`, `"postgres"`, `"sqlite"`, `"valkey"`) and other specific parameters:
+        * Each object must have a `"type"` (e.g., `"mariadb"`, `"postgres`", `"sqlite"`, `"valkey"`) and other specific parameters:
 
             * `"name"`: A unique, human-readable name for this backup configuration (e.g., `"my_blog_db"`). This name will also be used to create a subdirectory within the `db_type` folder for its backups (e.g., `./backups/mariadb/my_blog_db/`).
 
-            * `"host"` or `"container_name"`: The Docker service name (if using `docker-compose` for your DB) or the exact Docker container name of your database instance. The backup agent will use this to connect or `exec` into the container.
+            * `"host"` or `"container_name"`: The Docker service name (if using `docker compose` for your DB) or the exact Docker container name of your database instance. The backup agent will use this to connect or `exec` into the container.
 
             * **For `mariadb`/`mysql`/`postgres`:**
 
@@ -160,7 +159,7 @@ Follow these steps to get your database backup agent running:
     Navigate to the directory containing your `docker-compose.yml` and other project files, then run:
 
     ```bash
-    docker-compose up -d --build
+    docker compose up -d --build
     
     ```
 
@@ -327,7 +326,7 @@ The backup files are located in the `./backups` directory on your host, organize
     
     ```
 
-    (Or stop the entire `docker-compose` stack: `docker-compose stop <your_db_service_name>`)
+    (Or stop the entire `docker compose` stack: `docker compose stop <your_db_service_name>`)
 
 2.  **Locate the desired backup file.**
 
@@ -413,7 +412,7 @@ The backup files are located in the `./backups` directory on your host, organize
     
     ```
 
-    (Or `docker-compose start <your_db_service_name>`)
+    (Or `docker compose start <your_db_service_name>`)
 
 ## Troubleshooting
 
@@ -438,3 +437,4 @@ The backup files are located in the `./backups` directory on your host, organize
     * Check the container logs for any errors related to `requests` or network connectivity.
 
 Feel free to open an issue or reach out if you encounter further problems!
+

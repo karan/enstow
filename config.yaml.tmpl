@@ -9,7 +9,7 @@ timezone: "America/Los_Angeles" # Example: "America/Los_Angeles", "UTC", "Europe
 # Set to 0 to disable purging.
 purge_days: 30
 
-# NEW: Global Healthchecks.io URL for the entire backup process.
+# Global Healthchecks.io URL for the entire backup process.
 # This check will receive start, success, and failure pings for the overall job.
 # Individual database backup status will be logged to this check's /log endpoint.
 # Format: https://hc-ping.com/<your_uuid>
@@ -18,7 +18,6 @@ healthcheck_url: "https://hc-ping.com/YOUR_GLOBAL_HEALTHCHECKS_UUID_HERE" # Repl
 # List of databases to back up.
 # Each entry is an object defining a single database configuration.
 # WARNING: Storing passwords directly in this file is NOT recommended for production.
-# Consider using Docker secrets or external secret management tools for production environments.
 databases:
   - type: mariadb
     name: my_web_app_mariadb

@@ -1,0 +1,4 @@
+SET test:key1 "Redis Value 1"
+SET test:key2 "Redis Value 2"
+LPUSH test:list "item1" "item2" "item3"
+HSET test:hash field1 "value1" field2 "value2"

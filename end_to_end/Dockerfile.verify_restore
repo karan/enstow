@@ -10,7 +10,7 @@ WORKDIR /app
 # libmysqlclient-dev and libpq-dev are build dependencies for mysqlclient and psycopg2-binary
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        libmysqlclient-dev \
+        default-libmysqlclient-dev \
         libpq-dev \
         sqlite3 \
         # For checking redis from outside container, we need redis-cli installed

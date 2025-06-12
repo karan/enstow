@@ -1,5 +1,3 @@
 docker
 pytz
 PyYAML
-pytest # For testing
-pytest-mock # For mocking in tests
