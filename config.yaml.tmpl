@@ -1,0 +1,48 @@
+# Configuration for the Docker DB Backup Agent
+
+# Optional: Override environment variable for timezone if defined here.
+# If not present, the TIMEZONE env var from docker-compose.yml will be used.
+timezone: "America/Los_Angeles" # Example: "America/Los_Angeles", "UTC", "Europe/Berlin"
+
+# Optional: Override environment variable for purge_days if defined here.
+# If not present, the PURGE_DAYS env var from docker-compose.yml will be used.
+# Set to 0 to disable purging.
+purge_days: 30
+
+# NEW: Global Healthchecks.io URL for the entire backup process.
+# This check will receive start, success, and failure pings for the overall job.
+# Individual database backup status will be logged to this check's /log endpoint.
+# Format: https://hc-ping.com/<your_uuid>
+healthcheck_url: "https://hc-ping.com/YOUR_GLOBAL_HEALTHCHECKS_UUID_HERE" # Replace with your UUID
+
+# List of databases to back up.
+# Each entry is an object defining a single database configuration.
+# WARNING: Storing passwords directly in this file is NOT recommended for production.
+# Consider using Docker secrets or external secret management tools for production environments.
+databases:
+  - type: mariadb
+    name: my_web_app_mariadb
+    host: mariadb-container-name # Replace with your MariaDB/MySQL container name or service name
+    user: root
+    password: "your_mariadb_root_password_here" # Direct password (WARNING: See note above)
+    database: my_webapp_db
+    dump_args: "--single-transaction --skip-dump-date" # Recommended for InnoDB
+
+  - type: postgres
+    name: my_data_service_pg
+    host: postgres-container-name # Replace with your PostgreSQL container name or service name
+    user: postgres
+    password: "your_postgres_password_here" # Direct password (WARNING: See note above)
+    database: my_data_db
+    dump_args: "-Fc" # Recommended: Use custom format for pg_dump
+
+  - type: sqlite
+    name: my_app_sqlite
+    container_name: my-app-with-sqlite-container # Replace with the container name holding the SQLite file
+    path_in_container: "/app/data/my_sqlite.db" # Absolute path to the .db file *inside* that container
+
+  - type: valkey
+    name: my_cache_valkey
+    container_name: valkey-container-name # Replace with your Valkey/Redis container name or service name
+    password: "your_valkey_password_here" # Optional: Direct password (WARNING: See note above)
+    rdb_path_in_container: "/data/dump.rdb" # Absolute path to the RDB file inside the Valkey/Redis container

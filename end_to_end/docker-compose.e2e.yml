@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  # Test Database Containers
+  mariadb-test-e2e:
+    image: mariadb:10.6
+    container_name: mariadb-test-e2e
+    environment:
+      MARIADB_ROOT_PASSWORD: "test_mariadb_password"
+      MARIADB_DATABASE: "test_db"
+    volumes:
+      - mariadb_data_e2e:/var/lib/mysql
+    healthcheck: # Healthcheck for MariaDB to ensure it's ready
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptest_mariadb_password"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: on-failure
+
+  postgres-test-e2e:
+    image: postgres:13
+    container_name: postgres-test-e2e
+    environment:
+      POSTGRES_DB: "pg_test_db"
+      POSTGRES_USER: "pguser"
+      POSTGRES_PASSWORD: "test_postgres_password"
+    volumes:
+      - postgres_data_e2e:/var/lib/postgresql/data
+    healthcheck: # Healthcheck for PostgreSQL
+      test: ["CMD-SHELL", "pg_isready -U pguser -d pg_test_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: on-failure
+
+  sqlite-app-e2e: # A generic app container to hold the SQLite DB
+    image: alpine/git # Using a simple image that can exec basic commands
+    container_name: sqlite-app-e2e
+    volumes:
+      # Mount a specific directory where the SQLite DB will reside inside this container
+      - sqlite_app_data_e2e:/app/data
+    command: ["sh", "-c", "tail -f /dev/null"] # Keep container running
+    restart: on-failure
+
+  valkey-test-e2e:
+    image: valkey/valkey:7.2 # Or redis:latest
+    container_name: valkey-test-e2e
+    environment:
+      # For Valkey/Redis, password usually needs explicit config or `requirepass`
+      # For test, we'll set it as an env var the client uses.
+      REDIS_PASSWORD: "test_valkey_password" # This sets `requirepass` for official Redis images
+    volumes:
+      - valkey_data_e2e:/data
+    healthcheck: # Healthcheck for Valkey/Redis
+      test: ["CMD", "redis-cli", "-a", "test_valkey_password", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 10
+    restart: on-failure
+
+  # DB Backup Agent Container
+  db-backup-agent-e2e:
+    build:
+      context: ../ # Build from the parent directory where Dockerfile is
+      dockerfile: Dockerfile
+    container_name: db-backup-agent-e2e
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro # Allows agent to interact with other containers
+      - ${PWD}/backups_e2e:/backups # E2E test-specific backup directory
+      - ./e2e_config.yaml:/app/config.yaml:ro # E2E test-specific config
+    environment:
+      BACKUP_DIR: "/backups"
+      CONFIG_FILE_PATH: "/app/config.yaml"
+      # TIMEZONE and PURGE_DAYS can be set here or in e2e_config.yaml
+      # For E2E, we'll primarily use e2e_config.yaml
+    depends_on: # Ensure DBs are up before backup agent starts
+      mariadb-test-e2e:
+        condition: service_healthy
+      postgres-test-e2e:
+        condition: service_healthy
+      sqlite-app-e2e:
+        condition: service_started # No specific healthcheck needed for alpine/git
+      valkey-test-e2e:
+        condition: service_healthy
+    restart: on-failure
+
+volumes:
+  mariadb_data_e2e:
+  postgres_data_e2e:
+  sqlite_app_data_e2e:
+  valkey_data_e2e:

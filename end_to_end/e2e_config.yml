@@ -1,0 +1,37 @@
+# Configuration for the Docker DB Backup Agent - E2E Test Specific
+
+# Purge days set to 1 for quick testing of purging logic
+purge_days: 1
+
+# Healthchecks.io URL - omitted for E2E testing to avoid unnecessary pings
+# healthcheck_url: "https://hc-ping.com/YOUR_GLOBAL_HEALTHCHECKS_UUID_HERE"
+
+# List of databases to back up for E2E tests.
+# These names must match the container names in docker-compose.e2e.yml
+databases:
+  - type: mariadb
+    name: test_mariadb_backup
+    host: mariadb-test-e2e # Matches service name in docker-compose.e2e.yml
+    user: root
+    password: "test_mariadb_password" # Matches password in docker-compose.e2e.yml
+    database: test_db
+    dump_args: "--single-transaction --skip-dump-date"
+
+  - type: postgres
+    name: test_postgres_backup
+    host: postgres-test-e2e # Matches service name in docker-compose.e2e.yml
+    user: pguser
+    password: "test_postgres_password" # Matches password in docker-compose.e2e.yml
+    database: pg_test_db
+    dump_args: "-Fc"
+
+  - type: sqlite
+    name: test_sqlite_backup
+    container_name: sqlite-app-e2e # Matches service name in docker-compose.e2e.yml
+    path_in_container: "/app/data/e2e_sqlite.db" # Path to the test DB file inside the container
+
+  - type: valkey
+    name: test_valkey_backup
+    container_name: valkey-test-e2e # Matches service name in docker-compose.e2e.yml
+    password: "test_valkey_password" # Matches password in docker-compose.e2e.yml
+    rdb_path_in_container: "/data/dump.rdb" # Default RDB path for Valkey/Redis

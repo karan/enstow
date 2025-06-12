@@ -1,0 +1,61 @@
+name: CI/CD Docker DB Vaulter
+
+on:
+  push:
+    branches:
+      - main # Trigger on push to the main branch
+  pull_request: # Trigger on pull requests for review and testing
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest # Use the latest Ubuntu runner
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4 # Action to checkout your repository code
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13' # Ensure Python 3.13 is used
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt # Install Python dependencies including pytest
+
+    - name: Run unit tests
+      run: |
+        pytest tests/ # Run the tests located in the 'tests/' directory
+
+    - name: Build Docker image (for test success)
+      # Build the Docker image without pushing, just to ensure it builds successfully
+      run: |
+        docker build -t db-vaulter:test .
+
+  publish:
+    needs: build-and-test # This job depends on the 'build-and-test' job succeeding
+    # Only push on successful main branch pushes, not for PRs
+    if: success() && github.ref == 'refs/heads/main' 
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io # Specify GHCR registry
+        username: ${{ github.actor }} # Use GitHub actor for GHCR username
+        password: ${{ secrets.GITHUB_TOKEN }} # Use GITHUB_TOKEN for authentication
+
+    - name: Build and push Docker image to GHCR
+      uses: docker/build-push-action@v5
+      with:
+        context: . # Build context is the current directory
+        push: true # Push the image to GHCR
+        tags: | # Define image tags for GHCR
+          ghcr.io/${{ github.repository }}:latest
+          ghcr.io/${{ github.repository }}:${{ github.sha }} # Tag with commit SHA for specific versioning

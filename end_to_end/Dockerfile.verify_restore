@@ -1,0 +1,33 @@
+# Dockerfile for the verification script
+# This image contains the necessary client libraries to connect to the databases
+# and verify their state.
+
+FROM python:3.13-slim-bookworm
+
+WORKDIR /app
+
+# Install database client libraries for Python
+# libmysqlclient-dev and libpq-dev are build dependencies for mysqlclient and psycopg2-binary
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libmysqlclient-dev \
+        libpq-dev \
+        sqlite3 \
+        # For checking redis from outside container, we need redis-cli installed
+        # This is for verify_restore.py's subprocess call for SQLite verification
+        docker.io \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+COPY requirements.txt .
+RUN pip install --no-cache-dir \
+    mysql-connector-python \
+    psycopg2-binary \
+    redis \
+    pyyaml \
+    docker # In case the verification script needs to use docker-py to exec commands
+
+# Copy the verification script itself
+COPY verify_restore.py .
+
+CMD ["python3", "/app/verify_restore.py"]

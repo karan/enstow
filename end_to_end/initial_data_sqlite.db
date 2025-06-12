@@ -1,0 +1,29 @@
+-- To create this file for testing, you can use:
+-- sqlite3 initial_data_sqlite.db
+-- CREATE TABLE test_items (id INTEGER PRIMARY KEY, value TEXT);
+-- INSERT INTO test_items (value) VALUES ('SQLite Test Data 1'), ('SQLite Test Data 2');
+-- .quit
+
+-- The content below is the raw binary of a simple SQLite DB
+-- You cannot directly embed binary content in a code block.
+-- The actual file `initial_data_sqlite.db` should be created externally.
+-- For the purpose of this example, assume this file exists with the following data:
+-- Table: test_items
+-- id | value
+-- -- | ------------------
+-- 1  | SQLite Test Data 1
+-- 2  | SQLite Test Data 2
+```
+**Note**: The above is a placeholder. You need to create a real `initial_data_sqlite.db` file with actual data using `sqlite3` CLI as commented.
+
+---
+
+
+```
+-- end_to_end/initial_data_redis.txt
+-- Redis/Valkey commands for test data
+
+SET test:key1 "Redis Value 1"
+SET test:key2 "Redis Value 2"
+LPUSH test:list "item1" "item2" "item3"
+HSET test:hash field1 "value1" field2 "value2"
