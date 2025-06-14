@@ -32,7 +32,6 @@ COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/pytho
 
 # Copy application code and configuration
 COPY backup_script.py .
-COPY config.yaml .
 COPY start.sh .
 
 # Make the start.sh script executable
