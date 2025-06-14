@@ -3,15 +3,14 @@ import datetime
 import pytz
 import docker
 import subprocess
-import time
 import tarfile
 import io
 import yaml
 import sys
 import requests
-import uuid # For generating run_id for Healthchecks.io
+import uuid
 
-# --- Global Configuration Variables (initialized later by _load_configuration) ---
+# --- Global Configuration Variables ---
 BACKUP_DIR = '/backups'
 TIMEZONE = 'UTC'
 PURGE_DAYS = 7
@@ -288,42 +287,6 @@ def _backup_sqlite(db_config, output_dir, backup_filename_base, indent_level):
         _log(f"Error during SQLite backup for '{db_name}': {e}", level="error", indent_level=indent_level + 1, file=sys.stderr)
         return False
 
-def _backup_valkey_redis(db_config, output_dir, backup_filename_base, indent_level):
-    """Handles Valkey/Redis backup using BGSAVE and copying the RDB file."""
-    password = db_config.get('password')
-    rdb_path_in_container = db_config.get('rdb_path_in_container', '/data/dump.rdb')
-    container_target = db_config.get('container_name')
-    db_name = db_config.get('name', 'unknown_db')
-
-    if not container_target:
-        raise ValueError(f"Missing required config for Valkey/Redis '{db_name}': container_name.")
-
-    container = _get_container_object(container_target, indent_level)
-    if not container:
-        raise RuntimeError(f"Could not get container object for '{container_target}'.")
-
-    # Trigger BGSAVE
-    redis_cli_cmd = ['redis-cli']
-    if password:
-        redis_cli_cmd.extend(['-a', password])
-    redis_cli_cmd.append('BGSAVE')
-
-    try:
-        _log(f"Triggering BGSAVE in container '{container_target}'...", indent_level=indent_level + 1)
-        exec_result = container.exec_run(redis_cli_cmd)
-        if exec_result.exit_code != 0:
-            error_msg = f"Error triggering BGSAVE for '{db_name}': {exec_result.output.decode()}"
-            _log(error_msg, level="error", indent_level=indent_level + 1, file=sys.stderr)
-            raise RuntimeError(error_msg)
-        _log(f"BGSAVE command executed. Waiting for RDB file to be ready (5 seconds).", indent_level=indent_level + 1)
-        time.sleep(5) # Give Valkey/Redis some time to finish writing the RDB file
-
-        backup_file = os.path.join(output_dir, f"{backup_filename_base}.rdb.gz")
-        return _copy_from_container_and_gzip(container, rdb_path_in_container, backup_file, db_name, indent_level)
-
-    except Exception as e:
-        raise RuntimeError(f"Error during Valkey/Redis BGSAVE or file copy for '{db_name}': {e}")
-
 def run_backup():
     """
     Main function to orchestrate the database backup process.
@@ -384,9 +347,6 @@ def run_backup():
             elif db_type == 'sqlite':
                 backup_successful_this_db = _backup_sqlite(db_config, output_dir, backup_filename_base, 1)
                 current_backup_file = os.path.join(output_dir, f"{backup_filename_base}.db.gz")
-            elif db_type == 'valkey' or db_type == 'redis':
-                backup_successful_this_db = _backup_valkey_redis(db_config, output_dir, backup_filename_base, 1)
-                current_backup_file = os.path.join(output_dir, f"{backup_filename_base}.rdb.gz")
             else:
                 error_message = f"Unknown database type: {db_type}. Skipping backup for '{db_name}'."
                 _log(error_message, level="error", indent_level=1, file=sys.stderr)

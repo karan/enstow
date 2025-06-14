@@ -17,13 +17,12 @@ healthcheck_url: "https://hc-ping.com/YOUR_GLOBAL_HEALTHCHECKS_UUID_HERE" # Repl
 
 # List of databases to back up.
 # Each entry is an object defining a single database configuration.
-# WARNING: Storing passwords directly in this file is NOT recommended for production.
 databases:
   - type: mariadb
     name: my_web_app_mariadb
     host: mariadb-container-name # Replace with your MariaDB/MySQL container name or service name
     user: root
-    password: "your_mariadb_root_password_here" # Direct password (WARNING: See note above)
+    password: "your_mariadb_root_password_here"
     database: my_webapp_db
     dump_args: "--single-transaction --skip-dump-date" # Recommended for InnoDB
 
@@ -31,7 +30,7 @@ databases:
     name: my_data_service_pg
     host: postgres-container-name # Replace with your PostgreSQL container name or service name
     user: postgres
-    password: "your_postgres_password_here" # Direct password (WARNING: See note above)
+    password: "your_postgres_password_here"
     database: my_data_db
     dump_args: "-Fc" # Recommended: Use custom format for pg_dump
 
@@ -39,9 +38,3 @@ databases:
     name: my_app_sqlite
     container_name: my-app-with-sqlite-container # Replace with the container name holding the SQLite file
     path_in_container: "/app/data/my_sqlite.db" # Absolute path to the .db file *inside* that container
-
-  - type: valkey
-    name: my_cache_valkey
-    container_name: valkey-container-name # Replace with your Valkey/Redis container name or service name
-    password: "your_valkey_password_here" # Optional: Direct password (WARNING: See note above)
-    rdb_path_in_container: "/data/dump.rdb" # Absolute path to the RDB file inside the Valkey/Redis container

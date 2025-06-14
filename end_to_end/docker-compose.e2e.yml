@@ -8,7 +8,7 @@ services:
       MARIADB_DATABASE: "test_db"
     volumes:
       - mariadb_data_e2e:/var/lib/mysql
-    healthcheck: # Healthcheck for MariaDB to ensure it's ready
+    healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptest_mariadb_password"]
       interval: 5s
       timeout: 5s
@@ -24,50 +24,32 @@ services:
       POSTGRES_PASSWORD: "test_postgres_password"
     volumes:
       - postgres_data_e2e:/var/lib/postgresql/data
-    healthcheck: # Healthcheck for PostgreSQL
+    healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pguser -d pg_test_db"]
       interval: 5s
       timeout: 5s
       retries: 10
     restart: on-failure
 
-  sqlite-app-e2e: # A generic app container to hold the SQLite DB
-    image: alpine:latest # Using alpine for reliable shell execution and package management
+  sqlite-app-e2e:
+    image: alpine:latest
     container_name: sqlite-app-e2e
     volumes:
-      # Mount a specific directory where the SQLite DB will reside inside this container
       - sqlite_app_data_e2e:/app/data
-    # UPDATED: Install sqlite package within the command, then keep container running
     command: ["sh", "-c", "apk update && apk add --no-cache sqlite && tail -f /dev/null"]
-    healthcheck: # UPDATED: Healthcheck to explicitly ensure sqlite3 is installed and callable
-      test: ["CMD", "sqlite3", "--version"] # Check if sqlite3 command is available
+    healthcheck:
+      test: ["CMD", "sqlite3", "--version"]
       interval: 5s
       timeout: 5s
       retries: 5 # Allow more retries for apk install
       start_period: 20s # Increased start_period to give it ample time for apk install
     restart: on-failure
 
-  valkey-test-e2e:
-    image: valkey/valkey:7.2 # Or redis:latest
-    container_name: valkey-test-e2e
-    # Explicitly set requirepass to ensure it's active for authentication
-    command: valkey-server --requirepass test_valkey_password
-    volumes:
-      - valkey_data_e2e:/data
-    healthcheck: # Healthcheck for Valkey/Redis
-      test: ["CMD", "redis-cli", "-a", "test_valkey_password", "ping"]
-      interval: 1s
-      timeout: 3s
-      retries: 10
-    restart: on-failure
-
-  # DB Backup Agent Container
-  db-backup-agent-e2e:
+  enstow-e2e:
     build:
       context: ../ # Build from the parent directory where Dockerfile is
       dockerfile: Dockerfile
-    container_name: db-backup-agent-e2e
-    # Running as root for simplicity, as per previous request.
+    container_name: enstow-e2e
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro # Allows agent to interact with other containers
       - ${PWD}/backups_e2e:/backups # E2E test-specific backup directory
@@ -75,17 +57,15 @@ services:
     environment:
       BACKUP_DIR: "/backups"
       CONFIG_FILE_PATH: "/app/config.yaml"
-      CRON_SCHEDULE: "*/1 * * * *" # Cron schedule for the backup agent
-      TIMEZONE: "UTC" # Ensure timezone is passed to the container
-    depends_on: # Ensure DBs are up before backup agent starts
+      CRON_SCHEDULE: "*/1 * * * *"
+      TIMEZONE: "UTC"
+    depends_on:
       mariadb-test-e2e:
         condition: service_healthy
       postgres-test-e2e:
         condition: service_healthy
       sqlite-app-e2e:
-        condition: service_started # This dependency should still be 'service_started' as backup agent doesn't need healthy for file copy
-      valkey-test-e2e:
-        condition: service_healthy
+        condition: service_started
     restart: on-failure
 
   # Verification service for E2E tests
@@ -94,27 +74,20 @@ services:
       context: ./ # Build from the current end_to_end directory
       dockerfile: Dockerfile.verify_restore
     container_name: verify-restore-e2e
-    # This service will run as root as defined in its Dockerfile, for simplicity
     environment:
       MARIADB_PASSWORD: "test_mariadb_password"
       POSTGRES_PASSWORD: "test_postgres_password"
-      VALKEY_PASSWORD: "test_valkey_password"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro # Allows verification script to exec into other containers
-    # Use the default network created by docker compose for inter-service communication
     depends_on:
       mariadb-test-e2e:
         condition: service_healthy
       postgres-test-e2e:
         condition: service_healthy
-      sqlite-app-e2e: # Now depends on sqlite-app-e2e being healthy
+      sqlite-app-e2e:
         condition: service_healthy
-      valkey-test-e2e:
-        condition: service_healthy
-    # command: python3 /app/verify_restore.py # Command will be run via 'docker compose run'
 
 volumes:
   mariadb_data_e2e:
   postgres_data_e2e:
   sqlite_app_data_e2e:
-  valkey_data_e2e:

@@ -29,9 +29,3 @@ databases:
     name: test_sqlite_backup
     container_name: sqlite-app-e2e # Matches service name in docker-compose.e2e.yml
     path_in_container: "/app/data/e2e_sqlite.db" # Path to the test DB file inside the container
-
-  - type: valkey
-    name: test_valkey_backup
-    container_name: valkey-test-e2e # Matches service name in docker-compose.e2e.yml
-    password: "test_valkey_password" # Matches password in docker-compose.e2e.yml
-    rdb_path_in_container: "/data/dump.rdb" # Default RDB path for Valkey/Redis
