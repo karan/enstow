@@ -3,7 +3,7 @@
 This project provides a robust, containerized solution for safely backing up your databases (MariaDB/MySQL, PostgreSQL, SQLite) running in other Docker containers. It performs periodical backups without requiring downtime for your database services and stores them in a designated directory on your host machine.
 
 > [!NOTE]
-> v1 of this project was entirely coded by **Gemini Flash 2.5** (including tests) by @karan, who also ensured that the code worked, and cleaned up code comments and this README.
+> v1 of this project was entirely vide-coded with **Gemini Flash 2.5** (including tests) by [@karan](https://github.com/karan), who also ensured that the code worked, and cleaned up code comments and this README.
 
 ## Features
 
