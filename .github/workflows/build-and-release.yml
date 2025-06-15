@@ -1,0 +1,75 @@
+name: Build and Release Statically Linked SQLite3
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'static-sqlite3/sqlite_version.txt'
+      - 'static-sqlite3/build_sqlite.sh'
+      - 'static-sqlite3/Dockerfile'
+      - '.github/workflows/build-and-release.yml'
+
+env:
+  CONTAINER_NAME: sqlite3-builder
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to create a release
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set SQLite Version
+        id: set_sqlite_version
+        run: |
+          if [ -f static-sqlite3/sqlite_version.txt ]; then
+            SQLITE_VERSION_FROM_FILE=$(cat static-sqlite3/sqlite_version.txt | tr -d '\n' | tr -d '[:space:]')
+            echo "SQLITE_VERSION=$SQLITE_VERSION_FROM_FILE" >> "$GITHUB_ENV"
+          else
+            echo "Error: No SQLite version provided via static-sqlite3/sqlite_version.txt."
+            exit 1
+          fi
+          echo "Using SQLite Version: ${SQLITE_VERSION}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image
+        run: docker build -t $CONTAINER_NAME static-sqlite3/
+
+      - name: Build sqlite3 binary
+        run: |
+          mkdir -p ./out_binary
+          docker run --rm -v $(pwd)/out_binary:/out $CONTAINER_NAME "$SQLITE_VERSION"
+
+      - name: Verify binary and calculate hash
+        id: verify_hash
+        run: |
+          if [ ! -f ./out_binary/sqlite3 ]; then
+            echo "Error: sqlite3 binary not found in ./out_binary/"
+            exit 1
+          fi
+          BINARY_HASH=$(sha256sum ./out_binary/sqlite3 | awk '{print $1}')
+          echo "BINARY_HASH=$BINARY_HASH" >> "$GITHUB_OUTPUT"
+          echo "Calculated SHA256: $BINARY_HASH"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        if: success()
+        with:
+          tag_name: sqlite3-${{ env.SQLITE_VERSION }}-${{ steps.verify_hash.outputs.BINARY_HASH }}
+          name: Statically Linked SQLite3 v${{ env.SQLITE_VERSION }}
+          body: |
+            Statically linked `sqlite3` binary (built with musl libc).
+
+            **SQLite Version:** ${{ env.SQLITE_VERSION }}
+            **SHA256 Checksum:** `${{ steps.verify_hash.outputs.BINARY_HASH }}`
+
+            Download the attached `sqlite3` executable.
+          files: ./out_binary/sqlite3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
