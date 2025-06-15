@@ -16,9 +16,10 @@ RUN python3 -m pip install --no-cache-dir -r requirements.txt
 # Uses the same slim base image for a small final image.
 FROM python:3.13-slim-bookworm
 
-# Install cron and tzdata for scheduling and timezone management
+# Install curl, cron and tzdata for downloading, scheduling and timezone management
 # These operations will run as root during build and container startup.
 RUN apt-get update && apt-get install -y \
+    curl \
     cron \
     tzdata \
     # Clean up apt cache to keep image size small
@@ -29,6 +30,21 @@ WORKDIR /app
 
 # Copy installed dependencies from the builder stage
 COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
+
+# --- Download and Validate portable sqlite3 binary ---
+# Make the SQLite3 release tag configurable at build time
+ARG SQLITE3_RELEASE_TAG="sqlite3-3500100-ec62881dc1ee8ce932eb7694ea80d8df9e54f48908864ea13b2c67c5aa84987f"
+ENV SQLITE3_BINARY_URL="https://github.com/karan/enstow/releases/download/${SQLITE3_RELEASE_TAG}/sqlite3"
+ENV SQLITE3_SHA256_CHECKSUM="ec62881dc1ee8ce932eb7694ea80d8df9e54f48908864ea13b2c67c5aa84987f"
+ENV SQLITE3_DEST_PATH="/usr/local/bin/sqlite3_portable_backup"
+
+RUN set -eux; \
+    echo "Downloading sqlite3 binary from ${SQLITE3_BINARY_URL}"; \
+    curl -LO "${SQLITE3_BINARY_URL}"; \
+    echo "${SQLITE3_SHA256_CHECKSUM} sqlite3" | sha256sum -c -; \
+    mv sqlite3 "${SQLITE3_DEST_PATH}"; \
+    chmod +x "${SQLITE3_DEST_PATH}"; \
+    echo "Successfully downloaded, validated, and installed sqlite3 binary."
 
 # Copy application code and configuration
 COPY backup_script.py .

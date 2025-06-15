@@ -9,6 +9,14 @@ on:
       - 'static-sqlite3/build_sqlite.sh'
       - 'static-sqlite3/Dockerfile'
       - '.github/workflows/build-and-release.yml'
+  pull_request: # Trigger on pull requests for review and testing
+    branches:
+      - main
+    paths:
+      - 'static-sqlite3/sqlite_version.txt'
+      - 'static-sqlite3/build_sqlite.sh'
+      - 'static-sqlite3/Dockerfile'
+      - '.github/workflows/build-and-release.yml'
 
 env:
   CONTAINER_NAME: sqlite3-builder

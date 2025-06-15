@@ -244,7 +244,10 @@ def _backup_postgres(db_config, output_dir, backup_filename_base, indent_level):
     return _execute_in_container_and_stream(container, command, environment, backup_file, db_name, indent_level)
 
 def _backup_sqlite(db_config, output_dir, backup_filename_base, indent_level):
-    """Handles SQLite backup by executing .backup command inside the container."""
+    """
+    Handles SQLite backup by injecting a portable sqlite3 binary into the target container,
+    using it to create a consistent backup, then copying it out and cleaning up.
+    """
     path_in_container = db_config.get('path_in_container') # Path to the active DB file
     container_target = db_config.get('container_name')
     db_name = db_config.get('name', 'unknown_db')
@@ -256,36 +259,55 @@ def _backup_sqlite(db_config, output_dir, backup_filename_base, indent_level):
     if not container:
         raise RuntimeError(f"Could not get container object for '{container_target}'.")
 
-    # Define a temporary path for the backup file INSIDE the container
-    temp_backup_path_in_container = f"/tmp/{os.path.basename(path_in_container)}.backup"
+    sqlite_portable_binary_source = "/usr/local/bin/sqlite3_portable_backup" # Path in agent container
+    sqlite_exec_path_in_container = "/tmp/sqlite3_exec" # Temporary path for binary in target
+    temp_backup_path_in_container = "/tmp/temp_sqlite_backup.db" # Temporary path for backup in target
 
-    # Command to create the backup using sqlite3's .backup command
-    # This ensures a consistent snapshot of the database
-    backup_command = ["sqlite3", path_in_container, f".backup '{temp_backup_path_in_container}'"]
-    
-    _log(f"Creating consistent SQLite backup inside container '{container_target}' at '{temp_backup_path_in_container}'...", indent_level=indent_level + 1)
+    # 1. Copy portable sqlite3 binary into the target container
+    _log(f"Copying portable sqlite3 binary into '{container_target}'...", indent_level=indent_level + 1)
     try:
-        # Execute the .backup command
-        exec_result = container.exec_run(backup_command)
-        if exec_result.exit_code != 0:
-            error_msg = f"Error executing sqlite3 .backup command for '{db_name}': {exec_result.output.decode('utf-8', errors='ignore')}"
-            _log(error_msg, level="error", indent_level=indent_level + 1, file=sys.stderr)
-            raise RuntimeError(error_msg)
-        _log("sqlite3 .backup command executed successfully.", indent_level=indent_level + 1)
+        with open(sqlite_portable_binary_source, 'rb') as f:
+            binary_data = f.read()
         
-        # Now copy the created backup file from inside the container to the host
-        backup_file_on_host = os.path.join(output_dir, f"{backup_filename_base}.db.gz")
-        copy_success = _copy_from_container_and_gzip(container, temp_backup_path_in_container, backup_file_on_host, db_name, indent_level)
+        # Create a tar archive on the fly with the binary
+        tar_io = io.BytesIO()
+        tar = tarfile.open(fileobj=tar_io, mode='w')
+        info = tarfile.TarInfo(name=os.path.basename(sqlite_exec_path_in_container))
+        info.size = len(binary_data)
+        info.mode = 0o755 # Give execute permissions
+        tar.addfile(info, io.BytesIO(binary_data))
+        tar.close()
+        tar_io.seek(0) # Rewind to start of tar archive
         
-        # Clean up the temporary backup file inside the container
-        _log(f"Cleaning up temporary backup file '{temp_backup_path_in_container}' inside container.", indent_level=indent_level + 1)
-        container.exec_run(["rm", "-f", temp_backup_path_in_container]) # No need to check exit code for cleanup
-        
-        return copy_success
-
+        container.put_archive(os.path.dirname(sqlite_exec_path_in_container), tar_io) # Put into /tmp/
+        _log(f"Portable sqlite3 binary copied to {sqlite_exec_path_in_container} in container.", indent_level=indent_level + 1)
     except Exception as e:
-        _log(f"Error during SQLite backup for '{db_name}': {e}", level="error", indent_level=indent_level + 1, file=sys.stderr)
-        return False
+        _log(f"Error copying portable sqlite3 binary: {e}", level="error", indent_level=indent_level + 1, file=sys.stderr)
+        raise RuntimeError(f"Failed to copy sqlite3 binary to {container_target}.")
+
+    # 2. Execute the .backup command using the copied binary
+    # We don't need chmod +x explicitly if mode 0o755 is set in tarinfo with put_archive
+    backup_command = [sqlite_exec_path_in_container, path_in_container, f".backup '{temp_backup_path_in_container}'"]
+    _log(f"Creating consistent SQLite backup inside container '{container_target}' at '{temp_backup_path_in_container}'...", indent_level=indent_level + 1)
+    
+    exec_result = container.exec_run(backup_command)
+    if exec_result.exit_code != 0:
+        error_msg = f"Error executing sqlite3 .backup command for '{db_name}': {exec_result.output.decode('utf-8', errors='ignore')} (Exit Code: {exec_result.exit_code})"
+        _log(error_msg, level="error", indent_level=indent_level + 1, file=sys.stderr)
+        # Attempt cleanup of the binary and temp backup even if backup fails
+        container.exec_run(["rm", "-f", sqlite_exec_path_in_container, temp_backup_path_in_container])
+        raise RuntimeError(error_msg)
+    _log("sqlite3 .backup command executed successfully.", indent_level=indent_level + 1)
+    
+    # 3. Copy the created backup file from inside the container to the host
+    backup_file_on_host = os.path.join(output_dir, f"{backup_filename_base}.db.gz")
+    copy_success = _copy_from_container_and_gzip(container, temp_backup_path_in_container, backup_file_on_host, db_name, indent_level)
+    
+    # 4. Clean up the temporary binary and backup file inside the container
+    _log(f"Cleaning up temporary files inside container '{container_target}'.", indent_level=indent_level + 1)
+    container.exec_run(["rm", "-f", sqlite_exec_path_in_container, temp_backup_path_in_container])
+    
+    return copy_success
 
 def run_backup():
     """
