@@ -50,6 +50,9 @@ RUN set -eux; \
 COPY backup_script.py .
 COPY start.sh .
 
+# For logs of the script
+RUN mkdir -p /var/log/cron
+
 # Make the start.sh script executable
 RUN chmod +x start.sh
 
