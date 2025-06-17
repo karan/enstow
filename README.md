@@ -42,11 +42,9 @@ Follow these steps to get your database backup agent running:
     ```
 
 1.  **Configure `config.yaml`:**
-    Copy the `config.yaml.tmpl` file and carefully configure the `databases` section (make sure to save it as `config.yaml`). You can also optionally override `timezone` and `purge_days` here, which will take precedence over the environment variables set in `docker-compose.yml`.
+    Copy the `config.yaml.tmpl` file and carefully configure the `databases` section (make sure to save it as `config.yaml`). You can also optionally override `purge_days` here, which will take precedence over the environment variables set in `docker-compose.yml`.
 
     **WARNING: Storing plain-text passwords directly in `config.yaml` is NOT recommended for production environments due to security risks. For production, consider using Docker secrets, Kubernetes secrets, or a dedicated secrets management solution (e.g., HashiCorp Vault, AWS Secrets Manager) and dynamically inject credentials at runtime.**
-
-    * **`timezone`**: (Optional) Set your local timezone (e.g., `"America/Los_Angeles"`, `"Europe/London"`, `"Asia/Tokyo"`). This affects the timestamping of your backup files.
 
     * **`purge_days`**: (Optional) Number of days to retain backups. Files older than this will be automatically deleted. Set to `0` to disable purging.
 
@@ -95,7 +93,7 @@ Follow these steps to get your database backup agent running:
 
             * `"0 0 * * 0"`: Every Sunday at midnight
 
-    * **`TIMEZONE`**: (Default: `"America/Los_Angeles"`) - Fallback timezone. If `timezone` is set in `config.yaml`, that value will be used instead.
+    * **`TIMEZONE`**: (Default: `"UTC"`) - Fallback timezone. If `timezone` is set in `config.yaml`, that value will be used instead.
 
     * **`PURGE_DAYS`**: (Default: `"30"`) - Fallback purge days. If `purge_days` is set in `config.yaml`, that value will be used instead.
 

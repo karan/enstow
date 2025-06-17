@@ -10,5 +10,5 @@ services:
       BACKUP_DIR: "/backups"
       CONFIG_FILE_PATH: "/app/config.yaml"
       CRON_SCHEDULE: "*/1 * * * *"
-      TIMEZONE: "UTC"
+      TIMEZONE: "America/Los_Angeles" # Example: "America/Los_Angeles", "UTC", "Europe/Berlin"
     restart: on-failure

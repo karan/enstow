@@ -1,39 +1,62 @@
-import os
 import datetime
-import pytz
 import docker
-import subprocess
-import tarfile
 import io
-import yaml
-import sys
+import logging
+import os
+import pytz
 import requests
+import subprocess
+import sys
+import tarfile
 import uuid
+import yaml
 
 # --- Global Configuration Variables ---
-BACKUP_DIR = '/backups'
-TIMEZONE = 'UTC'
-PURGE_DAYS = 7
-CONFIG_FILE_PATH = '/app/config.yaml'
+# Environment variables act as defaults if not set in YAML
+BACKUP_DIR = os.getenv('BACKUP_DIR', '/backups')
+TIMEZONE = os.getenv('TIMEZONE', 'UTC')
+PURGE_DAYS = int(os.getenv('PURGE_DAYS', '7'))
+CONFIG_FILE_PATH = os.getenv('CONFIG_FILE_PATH', '/app/config.yaml')
 GLOBAL_HEALTHCHECK_URL = None
 DATABASE_CONFIG = []
 client = None # Docker client will be initialized dynamically
 
-# --- Logging Helper ---
+# Configure a basic logger that writes to stdout.
+# We explicitly set up StreamHandler to ensure we can flush it.
+log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+log_handler = logging.StreamHandler(sys.stdout) # Direct logging output to stdout
+log_handler.setFormatter(log_formatter)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO) # Default logging level
+logger.addHandler(log_handler)
+
 def _log(message, level="info", indent_level=0, file=sys.stdout):
-    """Prints a log message with optional indentation."""
+    """Logs a message with optional indentation using the standard logging module and flushes immediately."""
     indent = "  " * indent_level
-    print(f"{indent}{message}", file=file)
+    full_message = f"{indent}{message}"
+
+    if level == "info":
+        logger.info(full_message)
+    elif level == "warning":
+        logger.warning(full_message)
+    elif level == "error":
+        logger.error(full_message)
+    else: # Default to debug for any other level, or if unspecified
+        logger.debug(full_message)
+
+    # Explicitly flush the stream handler to ensure immediate output
+    for handler in logger.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            handler.flush()
+
+    # Also flush sys.stdout and sys.stderr just in case (e.g., if other prints are used)
+    sys.stdout.flush()
+    sys.stderr.flush()
 
 def _load_configuration():
     """Loads configuration from the YAML file and sets global variables."""
-    global BACKUP_DIR, TIMEZONE, PURGE_DAYS, CONFIG_FILE_PATH, GLOBAL_HEALTHCHECK_URL, DATABASE_CONFIG
-
-    # Environment variables act as defaults if not set in YAML
-    BACKUP_DIR = os.getenv('BACKUP_DIR', '/backups')
-    TIMEZONE = os.getenv('TIMEZONE', 'UTC')
-    PURGE_DAYS = int(os.getenv('PURGE_DAYS', '7'))
-    CONFIG_FILE_PATH = os.getenv('CONFIG_FILE_PATH', '/app/config.yaml')
+    global PURGE_DAYS, GLOBAL_HEALTHCHECK_URL, DATABASE_CONFIG
 
     try:
         if not os.path.exists(CONFIG_FILE_PATH):
@@ -45,8 +68,6 @@ def _load_configuration():
             DATABASE_CONFIG = config_data.get('databases', [])
             
             # Override env vars if set in config.yaml
-            if 'timezone' in config_data:
-                TIMEZONE = config_data['timezone']
             if 'purge_days' in config_data:
                 PURGE_DAYS = int(config_data['purge_days'])
             GLOBAL_HEALTHCHECK_URL = config_data.get('healthcheck_url')
@@ -323,7 +344,6 @@ def run_backup():
         # Here we ensure the process exits with a failure code.
         _log(f"Critical startup error: {e}. Exiting backup process.", level="error", file=sys.stderr)
         sys.exit(1)
-
 
     timestamp = get_current_timestamp()
     run_id = str(uuid.uuid4()) # Generate a unique run ID for Healthchecks.io
