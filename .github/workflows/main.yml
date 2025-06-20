@@ -7,13 +7,7 @@ on:
     paths-ignore:
       - 'static-sqlite3/**'
       - '.github/workflows/build-and-release.yml'
-  pull_request: # Trigger on pull requests for review and testing
-    branches:
-      - main
-    paths-ignore:
-      - 'static-sqlite3/**'
-      - '.github/workflows/build-and-release.yml'
-
+  
 # Defines two custom environment variables for the workflow.
 # These are used for the Container registry domain, and a name for the
 # Docker image that this workflow builds.
