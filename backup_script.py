@@ -8,6 +8,7 @@ import requests
 import subprocess
 import sys
 import tarfile
+import time
 import uuid
 import yaml
 
@@ -440,6 +441,7 @@ def run_backup():
     _log("--------------------------------------------------")
 
     # Ping Healthchecks.io success/fail for the entire backup process
+    time.sleep(3)
     if all_backups_successful:
         _ping_healthchecks(GLOBAL_HEALTHCHECK_URL, "success", f"Global backup process completed successfully at {timestamp}. New: {len(new_files_created)} files ({total_new_size_mb:.2f} MB). Purged: {len(purged_files)} files ({total_purged_size_mb:.2f} MB).", run_id)
     else:
